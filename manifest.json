@@ -1,0 +1,9 @@
+{
+  "name": "MySKTTask",
+  "short_name": "MySKTTask",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0f14",
+  "theme_color": "#0d0f14",
+  "icons": []
+}
