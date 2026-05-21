@@ -69,15 +69,33 @@ function logAction(action, type, item = {}) {
   state.activity = state.activity.slice(0, 300);
 }
 
-function toast(message, type = 'info') {
+function toast(message, type = 'info', action = null) {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.textContent = message;
+
+  const span = document.createElement('span');
+  span.textContent = message;
+  el.appendChild(span);
+
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost mini';
+    btn.style.marginLeft = 'auto';
+    btn.textContent = action.label;
+    btn.onclick = () => {
+      action.fn();
+      el.remove();
+    };
+    el.appendChild(btn);
+  }
+
   $('#toastContainer').appendChild(el);
   setTimeout(() => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateX(20px)';
-    setTimeout(() => el.remove(), 250);
+    if (el.parentNode) {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(20px)';
+      setTimeout(() => el.remove(), 250);
+    }
   }, 3200);
 }
 
@@ -235,9 +253,9 @@ function hwCard(hw) {
   const attachments = parseJson(hw.attachments);
   const selected = state.selected.has(hw.id);
   return `<article class="hw ${due}" data-id="${esc(hw.id)}">
-    <input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleSelect('${esc(hw.id)}', this.checked)" class="admin-action">
-    <button class="check ${hw.done ? 'checked' : ''}" onclick="toggleDone('${esc(hw.id)}')">${hw.done ? '✓' : ''}</button>
-    <div class="hw-main" onclick="openHomework('${esc(hw.id)}')">
+    <input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleSelect('${esc(hw.id)}', this.checked)" class="admin-action" aria-label="เลือกการบ้าน">
+    <button class="check ${hw.done ? 'checked' : ''}" onclick="toggleDone('${esc(hw.id)}')" aria-label="${hw.done ? 'ทำเครื่องหมายว่ายังไม่เสร็จ' : 'ทำเครื่องหมายว่าเสร็จแล้ว'}">${hw.done ? '✓' : ''}</button>
+    <div class="hw-main" onclick="openHomework('${esc(hw.id)}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openHomework('${esc(hw.id)}')" aria-label="ดูรายละเอียดการบ้าน">
       <div class="hw-title">${esc(hw.title)}</div>
       <div class="meta">
         ${subjectPill(hw.subject)}
@@ -336,7 +354,7 @@ function bulkDelete() {
 }
 
 function toastWithUndo(message) {
-  toast(`${message} - กด Undo ได้ใน Admin/toolbar`, 'success');
+  toast(message, 'success', { label: 'เลิกทำ', fn: undoLast });
 }
 
 function undoLast() {
@@ -662,6 +680,11 @@ function extractSheetId(input) {
 
 async function pullSheet() {
   if (!settings.sheetId) return toast('ใส่ Google Sheet URL หรือ ID ก่อน', 'error');
+  const btn = $('#syncBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '🔄 กำลังซิงค์...';
+
   toast('กำลังอ่าน Google Sheet...');
   try {
     const [homeworks, summaries, events] = await Promise.all([
@@ -679,6 +702,9 @@ async function pullSheet() {
   } catch (err) {
     console.error(err);
     toast('อ่าน Sheet ไม่สำเร็จ ตรวจสอบสิทธิ์ Anyone with link can view', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
 
