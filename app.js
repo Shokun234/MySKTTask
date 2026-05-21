@@ -1,4 +1,4 @@
-const ADMIN_PIN = 'shokun999';
+const ADMIN_PIN_HASH = 'd7347a1461614694b25112b61bdca4981c8d7c28a0a5dfb73fcd8c96453c0c4c';
 const SUBJECTS = [
   'ภาษาอังกฤษหลัก','คณิตหลัก','การงาน','ประวัติศาสตร์','พลศึกษา',
   'คณิตศาสตร์เสริม','ภาษาไทย','ภาษาอังกฤษเสริม','สุขศึกษา',
@@ -38,6 +38,12 @@ const uid = () => `${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const isAdmin = () => adminMode;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+async function sha256(message) {
+  const msgUint8 = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 const parseJson = (value, fallback = []) => {
   if (Array.isArray(value)) return value;
   if (!value) return fallback;
@@ -652,8 +658,9 @@ function renderAdmin() {
   $('#makeRecurring').addEventListener('click', generateRecurring);
 }
 
-function checkPin() {
-  if ($('#pinInput').value === ADMIN_PIN) {
+async function checkPin() {
+  const hash = await sha256($('#pinInput').value);
+  if (hash === ADMIN_PIN_HASH) {
     adminMode = true;
     render();
     toast('Admin mode เปิดแล้ว', 'success');
