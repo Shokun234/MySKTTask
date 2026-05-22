@@ -1,4 +1,5 @@
-const ADMIN_PIN_HASH = 'd7347a1461614694b25112b61bdca4981c8d7c28a0a5dfb73fcd8c96453c0c4c';
+(function() {
+const ADMIN_PIN_HASH = '9ba59a5d2be075fec68ad255ffb03dad478da4efe26e21ca2105cf31985955bd';
 const SUBJECTS = [
   'ภาษาอังกฤษหลัก','คณิตหลัก','การงาน','ประวัติศาสตร์','พลศึกษา',
   'คณิตศาสตร์เสริม','ภาษาไทย','ภาษาอังกฤษเสริม','สุขศึกษา',
@@ -1069,3 +1070,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   setTimeout(requestNotifications, 1200);
 });
+})();
