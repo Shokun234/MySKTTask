@@ -82,7 +82,14 @@ let timer = { seconds: 25 * 60, total: 25 * 60, running: false, handle: null };
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const uid = () => `${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+let _todayCache = { val: '', ts: 0 };
+const todayStr = () => {
+  const now = Date.now();
+  if (now - _todayCache.ts < 1000) return _todayCache.val;
+  _todayCache.val = new Date().toISOString().slice(0, 10);
+  _todayCache.ts = now;
+  return _todayCache.val;
+};
 const isAdmin = () => adminMode;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 async function sha256(message) {
@@ -526,7 +533,21 @@ window.openDay = ds => {
 
 function renderSummaries() {
   const q = state.search.trim().toLowerCase();
-  const list = q ? state.summaries.filter(s => [s.title, s.body, s.subject, s.author].join(' ').toLowerCase().includes(q)) : state.summaries;
+  let list = state.summaries;
+  if (q) {
+    // Bolt: Optimized summary search by using individual field checks and multi-term support.
+    // Avoids heavy string concatenation and redundant toLowerCase calls.
+    const terms = q.split(/\s+/).filter(Boolean);
+    list = list.filter(s => {
+      const title = String(s.title || '').toLowerCase();
+      const body = String(s.body || '').toLowerCase();
+      const subject = String(s.subject || '').toLowerCase();
+      const author = String(s.author || '').toLowerCase();
+      return terms.every(term =>
+        title.includes(term) || body.includes(term) || subject.includes(term) || author.includes(term)
+      );
+    });
+  }
   $('#page-summaries').innerHTML = `
     <div class="toolbar">
       <input id="summarySearch" class="field search" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
