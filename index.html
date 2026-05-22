@@ -17,7 +17,7 @@
 
   <div id="app">
     <aside id="sidebar" class="sidebar">
-      <div class="brand">
+      <div class="brand" role="button" tabindex="0" aria-label="กลับสู่แดชบอร์ด">
         <div class="brand-mark">M</div>
         <div>
           <div class="brand-title">MySKTTask</div>
@@ -26,8 +26,8 @@
       </div>
 
       <nav class="nav">
-        <button class="nav-item active" data-page="dashboard"><span>🏠</span>แดชบอร์ด</button>
-        <button class="nav-item" data-page="homework"><span>📝</span>การบ้าน <b id="hwBadge">0</b></button>
+        <button class="nav-item active" data-page="dashboard" aria-current="page"><span>🏠</span>แดชบอร์ด</button>
+        <button class="nav-item" data-page="homework"><span>📝</span>การบ้าน <b id="hwBadge" style="display: none">0</b></button>
         <button class="nav-item" data-page="calendar"><span>📅</span>ปฏิทิน</button>
         <button class="nav-item" data-page="summaries"><span>💬</span>สรุปบทเรียน</button>
         <button class="nav-item" data-page="tools"><span>⏱️</span>เครื่องมืออ่านหนังสือ</button>
