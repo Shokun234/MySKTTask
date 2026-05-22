@@ -12,15 +12,15 @@ const SETTINGS_KEY = 'mysktask_settings_v3';
 // Supabase Configuration
 const SUPABASE_URL = 'https://zdynxecrqdenhuevzhm.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkeW54ZWNycWRlbnVodWV2emhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjUzODksImV4cCI6MjA5NDk0MTM4OX0.KFRqjWRnlMzrPdMiqliE8is3CNDNylcGW2Sed4xB-Ik';
-const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 /**
  * ฟังก์ชันพื้นฐานสำหรับดึงข้อมูล (Fetch) จากตาราง tasks
  */
 async function fetchSupabaseTasks() {
-  if (!supabase) return [];
+  if (!supabaseClient) return [];
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('tasks')
       .select('*')
       .order('dueDate', { ascending: true });
@@ -38,9 +38,9 @@ async function fetchSupabaseTasks() {
  * ฟังก์ชันพื้นฐานสำหรับเพิ่มข้อมูล (Insert) ไปยังตาราง tasks
  */
 async function insertSupabaseTask(task) {
-  if (!supabase) return null;
+  if (!supabaseClient) return null;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('tasks')
       .insert([task])
       .select();
