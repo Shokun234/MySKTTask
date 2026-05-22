@@ -82,6 +82,7 @@ let timer = { seconds: 25 * 60, total: 25 * 60, running: false, handle: null };
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const uid = () => `${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
+const safeId = id => String(id || '').replace(/[^a-zA-Z0-9_-]/g, '');
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const isAdmin = () => adminMode;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -95,6 +96,12 @@ const parseJson = (value, fallback = []) => {
   if (Array.isArray(value)) return value;
   if (!value) return fallback;
   try { return JSON.parse(value); } catch { return fallback; }
+};
+const safeUrl = url => {
+  const u = String(url || '').trim();
+  if (!u) return '';
+  if (u.toLowerCase().startsWith('javascript:')) return 'about:blank';
+  return u;
 };
 
 function saveLocal() {
@@ -155,7 +162,7 @@ function toast(message, type = 'info', action = null) {
 function thaiDate(ds) {
   if (!ds) return '-';
   const d = new Date(`${ds}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return ds;
+  if (Number.isNaN(d.getTime())) return esc(ds);
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
@@ -326,10 +333,11 @@ function hwCard(hw) {
   const due = getDueState(hw);
   const attachments = parseJson(hw.attachments);
   const selected = state.selected.has(hw.id);
-  return `<article class="hw ${due}" data-id="${esc(hw.id)}">
-    <input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleSelect('${esc(hw.id)}', this.checked)" class="admin-action" aria-label="เลือกการบ้าน">
-    <button class="check ${hw.done ? 'checked' : ''}" onclick="toggleDone('${esc(hw.id)}')" aria-label="${hw.done ? 'ทำเครื่องหมายว่ายังไม่เสร็จ' : 'ทำเครื่องหมายว่าเสร็จแล้ว'}">${hw.done ? '✓' : ''}</button>
-    <div class="hw-main" onclick="openHomework('${esc(hw.id)}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openHomework('${esc(hw.id)}')" aria-label="ดูรายละเอียดการบ้าน">
+  const idAttr = esc(hw.id);
+  return `<article class="hw ${due}" data-id="${idAttr}">
+    <input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleSelect(this.closest('.hw').dataset.id, this.checked)" class="admin-action" aria-label="เลือกการบ้าน">
+    <button class="check ${hw.done ? 'checked' : ''}" onclick="toggleDone(this.closest('.hw').dataset.id)" aria-label="${hw.done ? 'ทำเครื่องหมายว่ายังไม่เสร็จ' : 'ทำเครื่องหมายว่าเสร็จแล้ว'}">${hw.done ? '✓' : ''}</button>
+    <div class="hw-main" onclick="openHomework(this.closest('.hw').dataset.id)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openHomework(this.closest('.hw').dataset.id)" aria-label="ดูรายละเอียดการบ้าน">
       <div class="hw-title">${esc(hw.title)}</div>
       <div class="meta">
         ${subjectPill(hw.subject)}
@@ -341,8 +349,8 @@ function hwCard(hw) {
       ${hw.description ? `<div class="hint" style="margin-top:8px">${esc(hw.description).slice(0, 120)}</div>` : ''}
     </div>
     <div class="row-actions admin-action">
-      <button class="btn ghost mini" onclick="editHomework('${esc(hw.id)}')">แก้ไข</button>
-      <button class="btn danger mini" onclick="deleteHomework('${esc(hw.id)}')">ลบ</button>
+      <button class="btn ghost mini" onclick="editHomework(this.closest('.hw').dataset.id)">แก้ไข</button>
+      <button class="btn danger mini" onclick="deleteHomework(this.closest('.hw').dataset.id)">ลบ</button>
     </div>
   </article>`;
 }
@@ -379,12 +387,12 @@ window.openHomework = id => {
     <span class="label">รายละเอียด</span><div class="summary-body">${esc(hw.description || '-')}</div>
     <div style="height:14px"></div>
     <span class="label">Attachments</span>
-    ${attachments.length ? attachments.map(a => `<a class="pill" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name || a.url)}</a>`).join(' ') : '<div class="hint">ไม่มีไฟล์แนบ</div>'}
+    ${attachments.length ? attachments.map(a => `<a class="pill" href="${esc(safeUrl(a.url))}" target="_blank" rel="noopener">${esc(a.name || a.url)}</a>`).join(' ') : '<div class="hint">ไม่มีไฟล์แนบ</div>'}
     <div style="height:14px"></div>
     <span class="label">โน้ตส่วนตัว</span><div class="summary-body">${esc(hw.personalNotes || '-')}</div>
     <div style="height:14px"></div>
     <span class="label">ความคิดเห็น</span>${comments.length ? comments.map(c => `<div class="hw"><div class="hw-main"><b>${esc(c.name || 'Student')}</b><div class="hint">${thaiDate((c.at || '').slice(0,10))}</div><div>${esc(c.text)}</div></div></div>`).join('') : '<div class="hint">ยังไม่มีความคิดเห็น</div>'}
-  `, `<button class="btn ghost" onclick="closeModal()">ปิด</button><button class="btn primary admin-action" onclick="editHomework('${esc(id)}')">แก้ไข</button>`);
+  `, `<button class="btn ghost" onclick="closeModal()">ปิด</button><button class="btn primary admin-action" onclick="editHomework(this.closest('.modal-backdrop').dataset.id)">แก้ไข</button>`, id);
   renderAdminAccess();
 };
 
@@ -461,7 +469,7 @@ function editHomework(id = null) {
     </div>
     <div style="height:12px"></div>
     <label class="label">โน้ตส่วนตัว</label><textarea id="hwNotes">${esc(item.personalNotes || '')}</textarea>
-  `, `<button class="btn ghost" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveHomework('${esc(id || '')}')">บันทึก</button>`);
+  `, `<button class="btn ghost" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveHomework(this.closest('.modal-backdrop').dataset.id)">บันทึก</button>`, id || '');
 }
 
 window.editHomework = editHomework;
@@ -546,7 +554,7 @@ function summaryCard(s) {
     <div class="summary-head"><div class="avatar">${esc((s.author || '?').slice(0,2))}</div><div><b>${esc(s.author || 'Student')}</b><div class="meta">${subjectPill(s.subject)}<span class="pill">${thaiDate((s.createdAt || todayStr()).slice(0,10))}</span></div></div></div>
     <div class="summary-title">${esc(s.title)}</div>
     <div class="summary-body">${esc(s.body)}</div>
-    ${s.link ? `<div style="margin-top:12px"><a class="pill" href="${esc(s.link)}" target="_blank" rel="noopener">เปิดลิงก์แนบ</a></div>` : ''}
+    ${s.link ? `<div style="margin-top:12px"><a class="pill" href="${esc(safeUrl(s.link))}" target="_blank" rel="noopener">เปิดลิงก์แนบ</a></div>` : ''}
     ${quiz.length ? `<div class="study-block"><b>Quiz</b>${quiz.map((q, qi) => `<div style="margin-top:12px"><div>${qi + 1}. ${esc(q.q)}</div>${q.opts.map((o, oi) => `<button class="btn ghost quiz-option" onclick="answerQuiz(this,${oi},${Number(q.ans)})">${String.fromCharCode(65 + oi)}. ${esc(o)}</button>`).join('')}</div>`).join('')}</div>` : ''}
     ${flashcards.length ? `<div class="study-block"><b>Flashcards</b><div class="flash-grid">${flashcards.map(f => `<button class="flash" onclick="this.classList.toggle('flipped')"><span class="flash-inner"><span class="flash-front">${esc(f.front)}</span><span class="flash-back">${esc(f.back)}</span></span></button>`).join('')}</div></div>` : ''}
     <div class="study-block"><b>Comments</b>${comments.length ? comments.map(c => `<div class="hint" style="margin-top:8px"><b>${esc(c.name || 'Student')}</b>: ${esc(c.text)}</div>`).join('') : '<div class="hint">ยังไม่มีความคิดเห็น</div>'}</div>
@@ -814,7 +822,7 @@ async function readSheetTab(tab) {
 
 function normalizeHomework(row) {
   return {
-    id: String(row.id || uid()),
+    id: safeId(row.id || uid()),
     title: row.title || row.Title || '',
     subject: row.subject || row.Subject || '',
     assignDate: dateish(row.assignDate || row.AssignDate),
@@ -833,7 +841,7 @@ function normalizeHomework(row) {
 
 function normalizeSummary(row) {
   return {
-    id: String(row.id || uid()),
+    id: safeId(row.id || uid()),
     author: row.author || '',
     subject: row.subject || '',
     title: row.title || '',
@@ -849,7 +857,7 @@ function normalizeSummary(row) {
 
 function normalizeEvent(row) {
   return {
-    id: String(row.id || uid()),
+    id: safeId(row.id || uid()),
     title: row.title || '',
     start: dateish(row.start),
     end: dateish(row.end),
@@ -1004,8 +1012,8 @@ function parseCsv(text) {
   return rows;
 }
 
-function showModal(title, body, foot = '<button class="btn ghost" onclick="closeModal()">ปิด</button>') {
-  $('#modalRoot').innerHTML = `<div class="modal-backdrop"><div class="modal"><div class="modal-head"><strong>${esc(title)}</strong><button class="btn ghost mini" onclick="closeModal()">ปิด</button></div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div></div></div>`;
+function showModal(title, body, foot = '<button class="btn ghost" onclick="closeModal()">ปิด</button>', id = '') {
+  $('#modalRoot').innerHTML = `<div class="modal-backdrop" data-id="${esc(id)}"><div class="modal"><div class="modal-head"><strong>${esc(title)}</strong><button class="btn ghost mini" onclick="closeModal()">ปิด</button></div><div class="modal-body">${body}</div><div class="modal-foot">${foot}</div></div></div>`;
 }
 
 window.closeModal = () => { $('#modalRoot').innerHTML = ''; };
