@@ -175,7 +175,12 @@ function navigate(page) {
   state.selected.clear();
   $$('.page').forEach(p => p.classList.remove('active'));
   $(`#page-${page}`).classList.add('active');
-  $$('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.page === page));
+  $$('.nav-item').forEach(btn => {
+    const isActive = btn.dataset.page === page;
+    btn.classList.toggle('active', isActive);
+    if (isActive) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
   const titles = {
     dashboard: ['แดชบอร์ด', 'ดูงานค้าง ส่งเร็ว และความคืบหน้า'],
     homework: ['การบ้านทั้งหมด', 'ค้นหา เรียงลำดับ เลือกหลายรายการ และจัดการงาน'],
@@ -204,7 +209,9 @@ function render() {
 
 function updateBadge() {
   const count = state.homeworks.filter(h => !h.done).length;
-  $('#hwBadge').textContent = count;
+  const el = $('#hwBadge');
+  el.textContent = count;
+  el.style.display = count > 0 ? '' : 'none';
 }
 
 function renderAdminAccess() {
@@ -494,7 +501,7 @@ function renderCalendar() {
   const m = state.calDate.getMonth();
   let d = new Date(y, m, 1);
   d.setDate(d.getDate() - d.getDay());
-  let html = `<div class="toolbar"><button class="btn ghost" id="prevMonth">‹</button><b style="min-width:190px;text-align:center">${MONTHS_TH[m]} ${y + 543}</b><button class="btn ghost" id="nextMonth">›</button></div>`;
+  let html = `<div class="toolbar"><button class="btn ghost" id="prevMonth" aria-label="เดือนก่อนหน้า">‹</button><b style="min-width:190px;text-align:center">${MONTHS_TH[m]} ${y + 543}</b><button class="btn ghost" id="nextMonth" aria-label="เดือนถัดไป">›</button></div>`;
   html += `<div class="calendar">${DAYS_TH.map(x => `<div class="cal-head">${x}</div>`).join('')}`;
   for (let i = 0; i < 42; i++) {
     const ds = d.toISOString().slice(0, 10);
@@ -683,7 +690,7 @@ function formatTime(sec) {
 
 function renderAdmin() {
   if (!isAdmin()) {
-    $('#page-admin').innerHTML = `<div class="card" style="max-width:420px;margin:52px auto"><div class="card-body"><h2>Admin PIN</h2><p class="hint" style="margin:8px 0 16px">Admin mode อยู่แค่ session นี้ ถ้า refresh หน้าเว็บต้องใส่ PIN ใหม่</p><input id="pinInput" class="field" type="password" placeholder="PIN"><button id="pinSubmit" class="btn primary" style="width:100%;margin-top:12px">เข้าสู่ Admin</button></div></div>`;
+    $('#page-admin').innerHTML = `<div class="card" style="max-width:420px;margin:52px auto"><div class="card-body"><h2>Admin PIN</h2><p class="hint" style="margin:8px 0 16px">Admin mode อยู่แค่ session นี้ ถ้า refresh หน้าเว็บต้องใส่ PIN ใหม่</p><input id="pinInput" class="field" type="password" placeholder="PIN" autofocus><button id="pinSubmit" class="btn primary" style="width:100%;margin-top:12px">เข้าสู่ Admin</button></div></div>`;
     $('#pinSubmit').addEventListener('click', checkPin);
     $('#pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
     return;
@@ -1015,6 +1022,9 @@ function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebarOverlay
 function closeSidebar() { $('#sidebar').classList.remove('open'); $('#sidebarOverlay').classList.remove('open'); }
 
 function bindChrome() {
+  const brand = $('.brand');
+  brand.addEventListener('click', () => navigate('dashboard'));
+  brand.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('dashboard'); } });
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.page)));
   $('#menuBtn').addEventListener('click', openSidebar);
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
