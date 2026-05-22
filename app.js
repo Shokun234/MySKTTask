@@ -9,6 +9,52 @@ const DAYS_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 const STORE_KEY = 'mysktask_state_v3';
 const SETTINGS_KEY = 'mysktask_settings_v3';
 
+// Supabase Configuration
+const SUPABASE_URL = 'https://zdynxecrqdenhuevzhm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkeW54ZWNycWRlbnVodWV2emhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjUzODksImV4cCI6MjA5NDk0MTM4OX0.KFRqjWRnlMzrPdMiqliE8is3CNDNylcGW2Sed4xB-Ik';
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+/**
+ * ฟังก์ชันพื้นฐานสำหรับดึงข้อมูล (Fetch) จากตาราง tasks
+ */
+async function fetchSupabaseTasks() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('dueDate', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('Supabase fetch error:', err);
+    toast('ไม่สามารถดึงข้อมูลจาก Supabase ได้', 'error');
+    return [];
+  }
+}
+
+/**
+ * ฟังก์ชันพื้นฐานสำหรับเพิ่มข้อมูล (Insert) ไปยังตาราง tasks
+ */
+async function insertSupabaseTask(task) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert([task])
+      .select();
+
+    if (error) throw error;
+    toast('เพิ่มข้อมูลลง Supabase สำเร็จ', 'success');
+    return data[0];
+  } catch (err) {
+    console.error('Supabase insert error:', err);
+    toast('ไม่สามารถเพิ่มข้อมูลลง Supabase ได้', 'error');
+    return null;
+  }
+}
+
 let state = {
   homeworks: [],
   summaries: [],
@@ -636,6 +682,13 @@ function renderAdmin() {
   }
   $('#page-admin').innerHTML = `
     <div class="grid admin-grid">
+      <div class="card"><div class="card-head"><div class="card-title">Cloud Database (Supabase)</div></div><div class="card-body">
+        <p class="hint">เชื่อมต่อกับ Supabase เพื่อใช้ข้อมูลชุดเดียวกันทุกเครื่อง</p>
+        <div class="toolbar" style="margin-top:14px">
+          <button class="btn ghost" id="testSupabaseFetch">ทดสอบดึงข้อมูล</button>
+          <button class="btn ghost" id="testSupabaseInsert">ทดสอบเพิ่มข้อมูลตัวอย่าง</button>
+        </div>
+      </div></div>
       <div class="card"><div class="card-head"><div class="card-title">Google Sheets เชื่อมง่าย</div></div><div class="card-body">
         ${field('Google Sheet URL หรือ ID','sheetId', settings.sheetId)}
         <div style="height:10px"></div>
@@ -652,6 +705,16 @@ function renderAdmin() {
       </div></div>
       <div class="card"><div class="card-head"><div class="card-title">Activity Logs</div></div><div class="card-body">${state.activity.slice(0, 8).map(a => `<div class="hint">${new Date(a.at).toLocaleString()} - ${esc(a.action)} ${esc(a.type)} ${esc(a.title)}</div>`).join('') || '<div class="hint">ยังไม่มี log</div>'}</div></div>
     </div>`;
+  $('#testSupabaseFetch').addEventListener('click', async () => {
+    const tasks = await fetchSupabaseTasks();
+    toast(`ดึงข้อมูลสำเร็จ: ${tasks.length} รายการ`, 'success');
+    console.log('Supabase Tasks:', tasks);
+  });
+  $('#testSupabaseInsert').addEventListener('click', async () => {
+    const task = { title: 'ทดสอบจากเว็บ', subject: 'ทั่วไป', dueDate: todayStr(), done: false };
+    const result = await insertSupabaseTask(task);
+    if (result) toast('เพิ่มข้อมูลตัวอย่างสำเร็จ', 'success');
+  });
   $('#saveSheet').addEventListener('click', saveSheetSettings);
   $('#pullSheet').addEventListener('click', pullSheet);
   $('#pushSheet').addEventListener('click', pushSheet);
