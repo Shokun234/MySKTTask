@@ -13,3 +13,7 @@ Encapsulated app logic in an IIFE to prevent console-based state manipulation. T
 ## 2025-05-14 - Visual Noise Reduction via Conditional Badges
 **Learning:** Constant "0" badges in navigation items create visual clutter and can be perceived as an "error" or a "missing piece" by users. Hiding the badge entirely when there are no items (count is 0) improves focus and makes the interface feel cleaner.
 **Action:** When implementing badges for task lists or notifications, ensure they are conditionally rendered or hidden when the count is zero.
+
+## 2025-05-16 - Contextual Relative Dates and Accessible Toggles
+**Learning:** For a student-focused task manager, relative dates like "วันนี้" (Today) or "พรุ่งนี้" (Tomorrow) are much more intuitive than full dates for immediate deadlines. Additionally, icon-only buttons (like theme toggles) MUST have dynamic ARIA labels that describe the *action* or *target state* to be accessible to screen readers.
+**Action:** Use relative date labels for short-term deadlines (±3 days) to reduce cognitive load. Always add and update `aria-label` on icon-only toggle buttons when their state changes.

@@ -82,7 +82,10 @@ let timer = { seconds: 25 * 60, total: 25 * 60, running: false, handle: null };
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const uid = () => `${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const isAdmin = () => adminMode;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 async function sha256(message) {
@@ -156,6 +159,19 @@ function thaiDate(ds) {
   if (!ds) return '-';
   const d = new Date(`${ds}T00:00:00`);
   if (Number.isNaN(d.getTime())) return ds;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(`${ds}T00:00:00`);
+  target.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((target - now) / 86400000);
+
+  if (diffDays === 0) return 'วันนี้';
+  if (diffDays === 1) return 'พรุ่งนี้';
+  if (diffDays === -1) return 'เมื่อวาน';
+  if (diffDays > 1 && diffDays <= 3) return `อีก ${diffDays} วัน`;
+
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
@@ -192,6 +208,7 @@ function navigate(page) {
   $('#pageTitle').textContent = titles[page][0];
   $('#pageHint').textContent = titles[page][1];
   closeSidebar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   render();
 }
 window.navigate = navigate;
@@ -1028,9 +1045,14 @@ function bindChrome() {
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.page)));
   $('#menuBtn').addEventListener('click', openSidebar);
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
+  const updateThemeLabel = () => {
+    $('#themeToggle').setAttribute('aria-label', settings.theme === 'light' ? 'เปลี่ยนเป็นโหมดมืด' : 'เปลี่ยนเป็นโหมดสว่าง');
+  };
+  updateThemeLabel();
   $('#themeToggle').addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     document.body.classList.toggle('light', settings.theme === 'light');
+    updateThemeLabel();
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
