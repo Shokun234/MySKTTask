@@ -13,3 +13,7 @@ Encapsulated app logic in an IIFE to prevent console-based state manipulation. T
 ## 2025-05-14 - Visual Noise Reduction via Conditional Badges
 **Learning:** Constant "0" badges in navigation items create visual clutter and can be perceived as an "error" or a "missing piece" by users. Hiding the badge entirely when there are no items (count is 0) improves focus and makes the interface feel cleaner.
 **Action:** When implementing badges for task lists or notifications, ensure they are conditionally rendered or hidden when the count is zero.
+
+## 2025-05-16 - Actionable Empty States and Sync Feedback
+**Learning:** Empty states are opportunities, not dead ends. Providing a clear Call to Action (CTA) like "Sync Now" or "Add Item" directly in the empty state reduces user frustration and friction. Additionally, providing immediate visual feedback for background processes (like spinning icons during sync) reassures the user that the app is working.
+**Action:** Always include a relevant CTA button in empty state components and use visual indicators (animations/loading states) for operations that take more than 200ms.

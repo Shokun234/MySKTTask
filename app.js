@@ -236,7 +236,7 @@ function renderDashboard() {
     <div class="grid two-col">
       <div class="card">
         <div class="card-head"><div class="card-title">การบ้านที่ต้องส่งเร็ว ๆ นี้</div></div>
-        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ')}</div></div>
+        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ', { label: '🔄 ซิงค์จาก Google Sheets', fn: 'pullSheet()' })}</div></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">กิจกรรมเดือนนี้</div></div>
@@ -283,7 +283,7 @@ function renderHomework() {
       <button class="btn danger admin-action" id="bulkDelete">ลบที่เลือก</button>
     </div>
     <div class="hint" style="margin-bottom:12px">เลือก checkbox หลายรายการเพื่อทำ bulk actions ได้</div>
-    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือเชื่อมต่อ Google Sheet')}</div>`;
+    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือเชื่อมต่อ Google Sheet', { label: '🔄 ซิงค์จาก Google Sheets', fn: 'pullSheet()' })}</div>`;
   $('#hwSearch').addEventListener('input', e => { state.search = e.target.value; renderHomework(); });
   $('#filterSubject').addEventListener('change', e => { state.filter = e.target.value; renderHomework(); });
   $('#sortHw').addEventListener('change', e => { state.sort = e.target.value; renderHomework(); });
@@ -532,11 +532,12 @@ function renderSummaries() {
       <input id="summarySearch" class="field search" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
       <button class="btn primary" id="addSummaryBtn">+ เพิ่มสรุปบทเรียน</button>
     </div>
-    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์')}
+    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์', { label: '+ เพิ่มสรุปบทเรียน', fn: 'editSummary()' })}
   `;
   $('#summarySearch').addEventListener('input', e => { state.search = e.target.value; renderSummaries(); });
   $('#addSummaryBtn').addEventListener('click', editSummary);
 }
+window.editSummary = editSummary;
 
 function summaryCard(s) {
   const quiz = parseJson(s.quiz);
@@ -772,10 +773,13 @@ function extractSheetId(input) {
 
 async function pullSheet() {
   if (!settings.sheetId) return toast('ใส่ Google Sheet URL หรือ ID ก่อน', 'error');
-  const btn = $('#syncBtn');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '🔄 กำลังซิงค์...';
+  const btns = $$('#syncBtn, .empty .btn');
+  const originals = new Map();
+  btns.forEach(b => {
+    originals.set(b, b.innerHTML);
+    b.disabled = true;
+    if (b.id === 'syncBtn') b.innerHTML = '<span class="spin">🔄</span> กำลังซิงค์...';
+  });
 
   toast('กำลังอ่าน Google Sheet...');
   try {
@@ -795,10 +799,13 @@ async function pullSheet() {
     console.error(err);
     toast('อ่าน Sheet ไม่สำเร็จ ตรวจสอบสิทธิ์ Anyone with link can view', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    btns.forEach(b => {
+      b.disabled = false;
+      b.innerHTML = originals.get(b);
+    });
   }
 }
+window.pullSheet = pullSheet;
 
 async function readSheetTab(tab) {
   const url = `https://docs.google.com/spreadsheets/d/${settings.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}&cacheBust=${Date.now()}`;
@@ -1014,8 +1021,12 @@ function field(label, id, value = '', type = 'text') {
   return `<div><label class="label" for="${id}">${label}</label><input id="${id}" class="field" type="${type}" value="${esc(value)}"></div>`;
 }
 
-function empty(title, body) {
-  return `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}</div>`;
+function empty(title, body, action = null) {
+  return `<div class="empty">
+    <strong>${esc(title)}</strong>
+    ${body ? `<span>${esc(body)}</span>` : ''}
+    ${action ? `<button class="btn ghost" onclick="${action.fn}">${esc(action.label)}</button>` : ''}
+  </div>`;
 }
 
 function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebarOverlay').classList.add('open'); }
@@ -1028,9 +1039,13 @@ function bindChrome() {
   $$('.nav-item').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.page)));
   $('#menuBtn').addEventListener('click', openSidebar);
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
-  $('#themeToggle').addEventListener('click', () => {
+  const themeToggle = $('#themeToggle');
+  themeToggle.setAttribute('role', 'switch');
+  themeToggle.setAttribute('aria-checked', settings.theme === 'light');
+  themeToggle.addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
     document.body.classList.toggle('light', settings.theme === 'light');
+    themeToggle.setAttribute('aria-checked', settings.theme === 'light');
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
