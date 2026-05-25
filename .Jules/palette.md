@@ -13,3 +13,7 @@ Encapsulated app logic in an IIFE to prevent console-based state manipulation. T
 ## 2025-05-14 - Visual Noise Reduction via Conditional Badges
 **Learning:** Constant "0" badges in navigation items create visual clutter and can be perceived as an "error" or a "missing piece" by users. Hiding the badge entirely when there are no items (count is 0) improves focus and makes the interface feel cleaner.
 **Action:** When implementing badges for task lists or notifications, ensure they are conditionally rendered or hidden when the count is zero.
+
+## 2025-05-15 - Actionable Empty States and Map-based Sync Feedback
+**Learning:** Static empty states can feel like dead ends. Providing a clear CTA that directly addresses the reason for the empty state (e.g., "Sync Now") reduces friction. Additionally, using a `Map` to store original button HTML before async operations allows for precise restoration across multiple UI elements.
+**Action:** Always evaluate if an empty state can be made actionable with a CTA. Use a `Map` to capture and restore DOM state for batch async feedback.

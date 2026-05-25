@@ -114,7 +114,17 @@ function loadLocal() {
   state.events = saved.events || [];
   state.activity = saved.activity || [];
   settings = { ...settings, ...parseJson(localStorage.getItem(SETTINGS_KEY), {}) };
-  document.body.classList.toggle('light', settings.theme === 'light');
+  updateThemeUI();
+}
+
+function updateThemeUI() {
+  const isLight = settings.theme === 'light';
+  document.body.classList.toggle('light', isLight);
+  const btn = $('#themeToggle');
+  if (btn) {
+    btn.setAttribute('aria-checked', isLight);
+    btn.setAttribute('aria-label', isLight ? 'สลับไปใช้โหมดมืด' : 'สลับไปใช้โหมดสว่าง');
+  }
 }
 
 function logAction(action, type, item = {}) {
@@ -236,7 +246,7 @@ function renderDashboard() {
     <div class="grid two-col">
       <div class="card">
         <div class="card-head"><div class="card-title">การบ้านที่ต้องส่งเร็ว ๆ นี้</div></div>
-        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ')}</div></div>
+        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ', { label: '🔄 ซิงค์จาก Google Sheet', fn: 'window.pullSheet()' })}</div></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">กิจกรรมเดือนนี้</div></div>
@@ -269,7 +279,7 @@ function renderHomework() {
   const list = getHomeworkList();
   $('#page-homework').innerHTML = `
     <div class="toolbar">
-      <input id="hwSearch" class="field search" placeholder="ค้นหาการบ้าน วิชา รายละเอียด หรือโน้ต..." value="${esc(state.search)}">
+      <input id="hwSearch" class="field search" aria-label="ค้นหาการบ้าน" placeholder="ค้นหาการบ้าน วิชา รายละเอียด หรือโน้ต..." value="${esc(state.search)}">
       <select id="filterSubject" class="select" style="max-width:210px">
         <option value="all">ทุกวิชา</option>${SUBJECTS.map(s => `<option value="${esc(s)}" ${state.filter === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
       </select>
@@ -529,7 +539,7 @@ function renderSummaries() {
   const list = q ? state.summaries.filter(s => [s.title, s.body, s.subject, s.author].join(' ').toLowerCase().includes(q)) : state.summaries;
   $('#page-summaries').innerHTML = `
     <div class="toolbar">
-      <input id="summarySearch" class="field search" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
+      <input id="summarySearch" class="field search" aria-label="ค้นหาสรุปบทเรียน" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
       <button class="btn primary" id="addSummaryBtn">+ เพิ่มสรุปบทเรียน</button>
     </div>
     ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์')}
@@ -772,10 +782,15 @@ function extractSheetId(input) {
 
 async function pullSheet() {
   if (!settings.sheetId) return toast('ใส่ Google Sheet URL หรือ ID ก่อน', 'error');
-  const btn = $('#syncBtn');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '🔄 กำลังซิงค์...';
+
+  // Palette: Sync feedback with spinning icon and state restoration.
+  const syncButtons = $$('#syncBtn, .empty button');
+  const originalHtmls = new Map();
+  syncButtons.forEach(btn => {
+    originalHtmls.set(btn, btn.innerHTML);
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin">🔄</span> กำลังซิงค์...';
+  });
 
   toast('กำลังอ่าน Google Sheet...');
   try {
@@ -795,8 +810,10 @@ async function pullSheet() {
     console.error(err);
     toast('อ่าน Sheet ไม่สำเร็จ ตรวจสอบสิทธิ์ Anyone with link can view', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    syncButtons.forEach(btn => {
+      btn.disabled = false;
+      btn.innerHTML = originalHtmls.get(btn);
+    });
   }
 }
 
@@ -1014,8 +1031,12 @@ function field(label, id, value = '', type = 'text') {
   return `<div><label class="label" for="${id}">${label}</label><input id="${id}" class="field" type="${type}" value="${esc(value)}"></div>`;
 }
 
-function empty(title, body) {
-  return `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}</div>`;
+function empty(title, body, action = null) {
+  return `<div class="empty">
+    <strong>${esc(title)}</strong>
+    ${body ? `<span>${esc(body)}</span>` : ''}
+    ${action ? `<button class="btn primary" onclick="${action.fn}">${esc(action.label)}</button>` : ''}
+  </div>`;
 }
 
 function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebarOverlay').classList.add('open'); }
@@ -1030,12 +1051,13 @@ function bindChrome() {
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
   $('#themeToggle').addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
-    document.body.classList.toggle('light', settings.theme === 'light');
+    updateThemeUI();
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
   $('#addHwBtn').addEventListener('click', () => editHomework());
   $('#syncBtn').addEventListener('click', pullSheet);
+  window.pullSheet = pullSheet;
   $('#restoreInput').addEventListener('change', e => e.target.files[0] && restoreJson(e.target.files[0]));
   $('#csvImportInput').addEventListener('change', e => e.target.files[0] && importCsv(e.target.files[0]));
 }
