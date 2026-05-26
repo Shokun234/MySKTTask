@@ -114,7 +114,7 @@ function loadLocal() {
   state.events = saved.events || [];
   state.activity = saved.activity || [];
   settings = { ...settings, ...parseJson(localStorage.getItem(SETTINGS_KEY), {}) };
-  document.body.classList.toggle('light', settings.theme === 'light');
+  updateThemeUI();
 }
 
 function logAction(action, type, item = {}) {
@@ -155,8 +155,13 @@ function toast(message, type = 'info', action = null) {
 function thaiDate(ds) {
   if (!ds) return '-';
   const d = new Date(`${ds}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return ds;
-  return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`;
+  if (Number.isNaN(d.getTime())) return esc(ds);
+  const diff = Math.floor((d - new Date(`${todayStr()}T00:00:00`)) / 86400000);
+  if (diff === 0) return 'วันนี้';
+  if (diff === 1) return 'พรุ่งนี้';
+  if (diff === -1) return 'เมื่อวาน';
+  if (diff > 1 && diff <= 3) return `อีก ${diff} วัน`;
+  return esc(`${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`);
 }
 
 function getDueState(hw) {
@@ -195,6 +200,8 @@ function navigate(page) {
   render();
 }
 window.navigate = navigate;
+window.pullSheet = pullSheet;
+window.editSummary = editSummary;
 
 function render() {
   renderAdminAccess();
@@ -236,7 +243,7 @@ function renderDashboard() {
     <div class="grid two-col">
       <div class="card">
         <div class="card-head"><div class="card-title">การบ้านที่ต้องส่งเร็ว ๆ นี้</div></div>
-        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ')}</div></div>
+        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'ลองซิงค์ข้อมูลจาก Google Sheet', { label: 'ซิงค์เลย', fn: 'pullSheet()', id: 'pullSheet' })}</div></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">กิจกรรมเดือนนี้</div></div>
@@ -283,7 +290,7 @@ function renderHomework() {
       <button class="btn danger admin-action" id="bulkDelete">ลบที่เลือก</button>
     </div>
     <div class="hint" style="margin-bottom:12px">เลือก checkbox หลายรายการเพื่อทำ bulk actions ได้</div>
-    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือเชื่อมต่อ Google Sheet')}</div>`;
+    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือซิงค์ข้อมูลใหม่', { label: 'ซิงค์จาก Sheet', fn: 'pullSheet()', id: 'pullSheet' })}</div>`;
   $('#hwSearch').addEventListener('input', e => { state.search = e.target.value; renderHomework(); });
   $('#filterSubject').addEventListener('change', e => { state.filter = e.target.value; renderHomework(); });
   $('#sortHw').addEventListener('change', e => { state.sort = e.target.value; renderHomework(); });
@@ -532,7 +539,7 @@ function renderSummaries() {
       <input id="summarySearch" class="field search" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
       <button class="btn primary" id="addSummaryBtn">+ เพิ่มสรุปบทเรียน</button>
     </div>
-    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์')}
+    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'ร่วมแบ่งปันสรุปบทเรียนกับเพื่อนๆ', { label: '+ เพิ่มสรุปบทเรียน', fn: 'editSummary()' })}
   `;
   $('#summarySearch').addEventListener('input', e => { state.search = e.target.value; renderSummaries(); });
   $('#addSummaryBtn').addEventListener('click', editSummary);
@@ -772,10 +779,13 @@ function extractSheetId(input) {
 
 async function pullSheet() {
   if (!settings.sheetId) return toast('ใส่ Google Sheet URL หรือ ID ก่อน', 'error');
-  const btn = $('#syncBtn');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '🔄 กำลังซิงค์...';
+  const syncBtns = $$('#syncBtn, #pullSheet');
+  const originalHtml = new Map();
+  syncBtns.forEach(b => {
+    originalHtml.set(b, b.innerHTML);
+    b.disabled = true;
+    b.innerHTML = '<span class="spin">🔄</span> กำลังซิงค์...';
+  });
 
   toast('กำลังอ่าน Google Sheet...');
   try {
@@ -795,8 +805,10 @@ async function pullSheet() {
     console.error(err);
     toast('อ่าน Sheet ไม่สำเร็จ ตรวจสอบสิทธิ์ Anyone with link can view', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    syncBtns.forEach(b => {
+      b.disabled = false;
+      b.innerHTML = originalHtml.get(b) || b.innerHTML;
+    });
   }
 }
 
@@ -1014,8 +1026,24 @@ function field(label, id, value = '', type = 'text') {
   return `<div><label class="label" for="${id}">${label}</label><input id="${id}" class="field" type="${type}" value="${esc(value)}"></div>`;
 }
 
-function empty(title, body) {
-  return `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}</div>`;
+function empty(title, body, action = null) {
+  let html = `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}`;
+  if (action) {
+    const idAttr = action.id ? `id="${esc(action.id)}"` : '';
+    html += `<button ${idAttr} class="btn ghost" style="margin-top:12px" onclick="${action.fn}">${esc(action.label)}</button>`;
+  }
+  return html + `</div>`;
+}
+
+function updateThemeUI() {
+  const isLight = settings.theme === 'light';
+  document.body.classList.toggle('light', isLight);
+  const toggle = $('#themeToggle');
+  if (toggle) {
+    toggle.setAttribute('role', 'switch');
+    toggle.setAttribute('aria-checked', isLight);
+    toggle.setAttribute('aria-label', isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode');
+  }
 }
 
 function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebarOverlay').classList.add('open'); }
@@ -1030,7 +1058,7 @@ function bindChrome() {
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
   $('#themeToggle').addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
-    document.body.classList.toggle('light', settings.theme === 'light');
+    updateThemeUI();
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
