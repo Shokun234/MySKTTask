@@ -13,3 +13,7 @@ Encapsulated app logic in an IIFE to prevent console-based state manipulation. T
 ## 2025-05-14 - Visual Noise Reduction via Conditional Badges
 **Learning:** Constant "0" badges in navigation items create visual clutter and can be perceived as an "error" or a "missing piece" by users. Hiding the badge entirely when there are no items (count is 0) improves focus and makes the interface feel cleaner.
 **Action:** When implementing badges for task lists or notifications, ensure they are conditionally rendered or hidden when the count is zero.
+
+## 2025-05-16 - Contextual Relative Dates and Actionable Empty States
+**Learning:** Using relative dates (Today, Tomorrow) significantly improves cognitive scannability for deadline-driven apps compared to absolute dates. Additionally, "empty states" should never be dead ends; providing a contextual Call-to-Action (CTA) within the empty state helps guide the user toward the "happy path" (e.g., Syncing or Adding data) without them having to search the UI for the right button.
+**Action:** Implement relative date formatting for near-term deadlines and ensure every empty state provides a clear, actionable button.
