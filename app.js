@@ -107,6 +107,18 @@ function saveLocal() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+function updateThemeUI() {
+  const isLight = settings.theme === 'light';
+  document.body.classList.toggle('light', isLight);
+  const btn = $('#themeToggle');
+  if (btn) {
+    btn.setAttribute('aria-checked', isLight);
+    btn.setAttribute('aria-label', isLight ? 'สลับเป็นโหมดมืด' : 'สลับเป็นโหมดสว่าง');
+  }
+  const meta = $('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isLight ? '#f3f6fb' : '#0d0f14');
+}
+
 function loadLocal() {
   const saved = parseJson(localStorage.getItem(STORE_KEY), {});
   state.homeworks = saved.homeworks || [];
@@ -114,7 +126,7 @@ function loadLocal() {
   state.events = saved.events || [];
   state.activity = saved.activity || [];
   settings = { ...settings, ...parseJson(localStorage.getItem(SETTINGS_KEY), {}) };
-  document.body.classList.toggle('light', settings.theme === 'light');
+  updateThemeUI();
 }
 
 function logAction(action, type, item = {}) {
@@ -772,10 +784,13 @@ function extractSheetId(input) {
 
 async function pullSheet() {
   if (!settings.sheetId) return toast('ใส่ Google Sheet URL หรือ ID ก่อน', 'error');
-  const btn = $('#syncBtn');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '🔄 กำลังซิงค์...';
+  const btns = $$('#syncBtn, #pullSheet');
+  const originalHtml = new Map();
+  btns.forEach(btn => {
+    originalHtml.set(btn, btn.innerHTML);
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin">🔄</span> กำลังซิงค์...';
+  });
 
   toast('กำลังอ่าน Google Sheet...');
   try {
@@ -795,8 +810,10 @@ async function pullSheet() {
     console.error(err);
     toast('อ่าน Sheet ไม่สำเร็จ ตรวจสอบสิทธิ์ Anyone with link can view', 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    btns.forEach(btn => {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml.get(btn);
+    });
   }
 }
 
@@ -1030,7 +1047,7 @@ function bindChrome() {
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
   $('#themeToggle').addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
-    document.body.classList.toggle('light', settings.theme === 'light');
+    updateThemeUI();
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
