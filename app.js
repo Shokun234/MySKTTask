@@ -221,11 +221,27 @@ function renderAdminAccess() {
 }
 
 function renderDashboard() {
-  const pending = state.homeworks.filter(h => !h.done && h.dueDate >= todayStr()).length;
-  const overdue = state.homeworks.filter(h => !h.done && h.dueDate < todayStr()).length;
-  const done = state.homeworks.filter(h => h.done).length;
+  // Bolt: Consolidate multiple stats calculations into a single O(N) pass.
+  // Reduces iterations from ~3N + S*N to just N.
+  let pending = 0, overdue = 0, done = 0;
+  const subjectStats = {};
+  const today = todayStr();
+
+  state.homeworks.forEach(h => {
+    if (h.done) done++;
+    else if (h.dueDate < today) overdue++;
+    else pending++;
+
+    if (h.subject) {
+      if (!subjectStats[h.subject]) subjectStats[h.subject] = { total: 0, done: 0 };
+      subjectStats[h.subject].total++;
+      if (h.done) subjectStats[h.subject].done++;
+    }
+  });
+
   const soon = getHomeworkList().filter(h => !h.done).slice(0, 5);
-  const monthEvents = state.events.filter(e => e.start?.slice(0, 7) === todayStr().slice(0, 7)).slice(0, 5);
+  const monthEvents = state.events.filter(e => (e.start || '').slice(0, 7) === today.slice(0, 7)).slice(0, 5);
+
   $('#page-dashboard').innerHTML = `
     <div class="grid stats">
       ${stat('งานรอส่ง', pending)}
@@ -246,7 +262,7 @@ function renderDashboard() {
     <div style="height:18px"></div>
     <div class="card">
       <div class="card-head"><div class="card-title">Progress per subject</div></div>
-      <div class="card-body">${progressHtml()}</div>
+      <div class="card-body">${progressHtml(subjectStats)}</div>
     </div>`;
 }
 
@@ -254,13 +270,12 @@ function stat(label, value, color = '') {
   return `<div class="stat ${color}"><div class="stat-num">${value}</div><div class="stat-label">${label}</div></div>`;
 }
 
-function progressHtml() {
-  const subjects = [...new Set(state.homeworks.map(h => h.subject).filter(Boolean))];
+function progressHtml(subjectStats) {
+  const subjects = Object.keys(subjectStats || {});
   if (!subjects.length) return empty('ยังไม่มีข้อมูลสำหรับกราฟ', '');
   return subjects.map(subject => {
-    const list = state.homeworks.filter(h => h.subject === subject);
-    const done = list.filter(h => h.done).length;
-    const pct = Math.round((done / list.length) * 100);
+    const { total, done } = subjectStats[subject];
+    const pct = Math.round((done / total) * 100);
     return `<div class="progress-row"><div>${esc(subject)}</div><div class="bar"><i style="width:${pct}%"></i></div><div>${pct}%</div></div>`;
   }).join('');
 }
