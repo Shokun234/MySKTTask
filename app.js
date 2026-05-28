@@ -97,6 +97,20 @@ const parseJson = (value, fallback = []) => {
   try { return JSON.parse(value); } catch { return fallback; }
 };
 
+function updateThemeUI() {
+  const isLight = settings.theme === 'light';
+  document.body.classList.toggle('light', isLight);
+
+  const meta = $('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isLight ? '#f3f6fb' : '#0d0f14');
+
+  const btn = $('#themeToggle');
+  if (btn) {
+    btn.setAttribute('aria-checked', isLight);
+    btn.setAttribute('aria-label', isLight ? 'สลับเป็นโหมดมืด' : 'สลับเป็นโหมดสว่าง');
+  }
+}
+
 function saveLocal() {
   localStorage.setItem(STORE_KEY, JSON.stringify({
     homeworks: state.homeworks,
@@ -114,7 +128,7 @@ function loadLocal() {
   state.events = saved.events || [];
   state.activity = saved.activity || [];
   settings = { ...settings, ...parseJson(localStorage.getItem(SETTINGS_KEY), {}) };
-  document.body.classList.toggle('light', settings.theme === 'light');
+  updateThemeUI();
 }
 
 function logAction(action, type, item = {}) {
@@ -1030,7 +1044,7 @@ function bindChrome() {
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
   $('#themeToggle').addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
-    document.body.classList.toggle('light', settings.theme === 'light');
+    updateThemeUI();
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
