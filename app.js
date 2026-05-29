@@ -81,10 +81,21 @@ let timer = { seconds: 25 * 60, total: 25 * 60, running: false, handle: null };
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
-const uid = () => `${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
+const uid = () => safeId(`${Date.now()}${Math.random().toString(16).slice(2, 8)}`);
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const isAdmin = () => adminMode;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const safeId = s => String(s || '').replace(/[^a-zA-Z0-9-_]/g, '');
+const safeUrl = u => {
+  const s = String(u || '').trim();
+  if (!s || s.startsWith('/') || s.startsWith('#')) return s;
+  try {
+    const p = new URL(s).protocol;
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(p) ? s : 'about:blank';
+  } catch { return 'about:blank'; }
+};
+window.safeId = safeId;
+window.safeUrl = safeUrl;
 async function sha256(message) {
   const msgUint8 = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -155,7 +166,7 @@ function toast(message, type = 'info', action = null) {
 function thaiDate(ds) {
   if (!ds) return '-';
   const d = new Date(`${ds}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return ds;
+  if (Number.isNaN(d.getTime())) return esc(ds);
   return `${d.getDate()} ${MONTHS_TH[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
@@ -379,7 +390,7 @@ window.openHomework = id => {
     <span class="label">รายละเอียด</span><div class="summary-body">${esc(hw.description || '-')}</div>
     <div style="height:14px"></div>
     <span class="label">Attachments</span>
-    ${attachments.length ? attachments.map(a => `<a class="pill" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name || a.url)}</a>`).join(' ') : '<div class="hint">ไม่มีไฟล์แนบ</div>'}
+    ${attachments.length ? attachments.map(a => `<a class="pill" href="${safeUrl(a.url)}" target="_blank" rel="noopener">${esc(a.name || a.url)}</a>`).join(' ') : '<div class="hint">ไม่มีไฟล์แนบ</div>'}
     <div style="height:14px"></div>
     <span class="label">โน้ตส่วนตัว</span><div class="summary-body">${esc(hw.personalNotes || '-')}</div>
     <div style="height:14px"></div>
@@ -389,6 +400,7 @@ window.openHomework = id => {
 };
 
 function deleteHomework(id) {
+  if (!isAdmin()) return;
   if (!confirm('ลบการบ้านนี้?')) return;
   const old = [...state.homeworks];
   const item = state.homeworks.find(h => h.id === id);
@@ -403,6 +415,7 @@ function deleteHomework(id) {
 window.deleteHomework = deleteHomework;
 
 function bulkDone() {
+  if (!isAdmin()) return;
   if (!state.selected.size) return toast('ยังไม่ได้เลือกการบ้าน', 'error');
   const old = structuredClone(state.homeworks);
   state.homeworks.forEach(h => { if (state.selected.has(h.id)) h.done = true; });
@@ -415,6 +428,7 @@ function bulkDone() {
 }
 
 function bulkDelete() {
+  if (!isAdmin()) return;
   if (!state.selected.size) return toast('ยังไม่ได้เลือกการบ้าน', 'error');
   if (!confirm(`ลบ ${state.selected.size} รายการ?`)) return;
   const old = structuredClone(state.homeworks);
@@ -467,10 +481,11 @@ function editHomework(id = null) {
 window.editHomework = editHomework;
 
 window.saveHomework = id => {
+  if (!isAdmin()) return;
   const title = $('#hwTitle').value.trim();
   const dueDate = $('#hwDue').value;
   if (!title || !dueDate) return toast('กรอกหัวข้อและวันส่ง', 'error');
-  const attachments = $('#hwAttach').value.split(/\n+/).map(x => x.trim()).filter(Boolean).map(url => ({ name: url.split('/').pop() || url, url }));
+  const attachments = $('#hwAttach').value.split(/\n+/).map(x => x.trim()).filter(Boolean).map(url => ({ name: url.split('/').pop() || url, url: safeUrl(url) }));
   const patch = {
     title,
     subject: $('#hwSubject').value,
@@ -546,7 +561,7 @@ function summaryCard(s) {
     <div class="summary-head"><div class="avatar">${esc((s.author || '?').slice(0,2))}</div><div><b>${esc(s.author || 'Student')}</b><div class="meta">${subjectPill(s.subject)}<span class="pill">${thaiDate((s.createdAt || todayStr()).slice(0,10))}</span></div></div></div>
     <div class="summary-title">${esc(s.title)}</div>
     <div class="summary-body">${esc(s.body)}</div>
-    ${s.link ? `<div style="margin-top:12px"><a class="pill" href="${esc(s.link)}" target="_blank" rel="noopener">เปิดลิงก์แนบ</a></div>` : ''}
+    ${s.link ? `<div style="margin-top:12px"><a class="pill" href="${safeUrl(s.link)}" target="_blank" rel="noopener">เปิดลิงก์แนบ</a></div>` : ''}
     ${quiz.length ? `<div class="study-block"><b>Quiz</b>${quiz.map((q, qi) => `<div style="margin-top:12px"><div>${qi + 1}. ${esc(q.q)}</div>${q.opts.map((o, oi) => `<button class="btn ghost quiz-option" onclick="answerQuiz(this,${oi},${Number(q.ans)})">${String.fromCharCode(65 + oi)}. ${esc(o)}</button>`).join('')}</div>`).join('')}</div>` : ''}
     ${flashcards.length ? `<div class="study-block"><b>Flashcards</b><div class="flash-grid">${flashcards.map(f => `<button class="flash" onclick="this.classList.toggle('flipped')"><span class="flash-inner"><span class="flash-front">${esc(f.front)}</span><span class="flash-back">${esc(f.back)}</span></span></button>`).join('')}</div></div>` : ''}
     <div class="study-block"><b>Comments</b>${comments.length ? comments.map(c => `<div class="hint" style="margin-top:8px"><b>${esc(c.name || 'Student')}</b>: ${esc(c.text)}</div>`).join('') : '<div class="hint">ยังไม่มีความคิดเห็น</div>'}</div>
@@ -771,6 +786,7 @@ function extractSheetId(input) {
 }
 
 async function pullSheet() {
+  if (!isAdmin()) return;
   if (!settings.sheetId) return toast('ใส่ Google Sheet URL หรือ ID ก่อน', 'error');
   const btn = $('#syncBtn');
   const originalText = btn.textContent;
@@ -814,7 +830,7 @@ async function readSheetTab(tab) {
 
 function normalizeHomework(row) {
   return {
-    id: String(row.id || uid()),
+    id: safeId(row.id || uid()),
     title: row.title || row.Title || '',
     subject: row.subject || row.Subject || '',
     assignDate: dateish(row.assignDate || row.AssignDate),
@@ -833,7 +849,7 @@ function normalizeHomework(row) {
 
 function normalizeSummary(row) {
   return {
-    id: String(row.id || uid()),
+    id: safeId(row.id || uid()),
     author: row.author || '',
     subject: row.subject || '',
     title: row.title || '',
@@ -849,7 +865,7 @@ function normalizeSummary(row) {
 
 function normalizeEvent(row) {
   return {
-    id: String(row.id || uid()),
+    id: safeId(row.id || uid()),
     title: row.title || '',
     start: dateish(row.start),
     end: dateish(row.end),
@@ -868,6 +884,7 @@ function dateish(v) {
 }
 
 async function pushSheet() {
+  if (!isAdmin()) return;
   if (!settings.scriptUrl) return toast('ใส่ Apps Script Web App URL ก่อน', 'error');
   try {
     await fetch(settings.scriptUrl, {
@@ -893,6 +910,7 @@ function editEvent() {
 }
 
 window.saveEvent = () => {
+  if (!isAdmin()) return;
   const title = $('#evTitle').value.trim();
   if (!title || !$('#evStart').value) return toast('กรอกชื่อและวันเริ่ม', 'error');
   const item = { id: uid(), title, start: $('#evStart').value, end: $('#evEnd').value, type: $('#evType').value.trim() || 'activity', description: $('#evDesc').value.trim(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
