@@ -195,6 +195,9 @@ function navigate(page) {
   render();
 }
 window.navigate = navigate;
+window.pullSheet = pullSheet;
+window.editSummary = editSummary;
+window.editEvent = editEvent;
 
 function render() {
   renderAdminAccess();
@@ -236,11 +239,11 @@ function renderDashboard() {
     <div class="grid two-col">
       <div class="card">
         <div class="card-head"><div class="card-title">การบ้านที่ต้องส่งเร็ว ๆ นี้</div></div>
-        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ')}</div></div>
+        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ', { label: 'ซิงค์ข้อมูล', onclick: 'pullSheet()' })}</div></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">กิจกรรมเดือนนี้</div></div>
-        <div class="card-body">${monthEvents.length ? monthEvents.map(e => `<div class="hw"><div class="hw-main"><div class="hw-title">${esc(e.title)}</div><div class="meta"><span class="pill">${thaiDate(e.start)}</span><span class="pill">${esc(e.type || 'event')}</span></div></div></div>`).join('') : empty('ไม่มีกิจกรรมเดือนนี้', '')}</div>
+        <div class="card-body">${monthEvents.length ? monthEvents.map(e => `<div class="hw"><div class="hw-main"><div class="hw-title">${esc(e.title)}</div><div class="meta"><span class="pill">${thaiDate(e.start)}</span><span class="pill">${esc(e.type || 'event')}</span></div></div></div>`).join('') : empty('ไม่มีกิจกรรมเดือนนี้', '', { label: 'ซิงค์ข้อมูล', onclick: 'pullSheet()' })}</div>
       </div>
     </div>
     <div style="height:18px"></div>
@@ -256,7 +259,7 @@ function stat(label, value, color = '') {
 
 function progressHtml() {
   const subjects = [...new Set(state.homeworks.map(h => h.subject).filter(Boolean))];
-  if (!subjects.length) return empty('ยังไม่มีข้อมูลสำหรับกราฟ', '');
+  if (!subjects.length) return empty('ยังไม่มีข้อมูลสำหรับกราฟ', '', { label: 'ซิงค์ข้อมูล', onclick: 'pullSheet()' });
   return subjects.map(subject => {
     const list = state.homeworks.filter(h => h.subject === subject);
     const done = list.filter(h => h.done).length;
@@ -283,7 +286,7 @@ function renderHomework() {
       <button class="btn danger admin-action" id="bulkDelete">ลบที่เลือก</button>
     </div>
     <div class="hint" style="margin-bottom:12px">เลือก checkbox หลายรายการเพื่อทำ bulk actions ได้</div>
-    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือเชื่อมต่อ Google Sheet')}</div>`;
+    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือเชื่อมต่อ Google Sheet', { label: 'ซิงค์จาก Sheets', onclick: 'pullSheet()' })}</div>`;
   $('#hwSearch').addEventListener('input', e => { state.search = e.target.value; renderHomework(); });
   $('#filterSubject').addEventListener('change', e => { state.filter = e.target.value; renderHomework(); });
   $('#sortHw').addEventListener('change', e => { state.sort = e.target.value; renderHomework(); });
@@ -532,7 +535,7 @@ function renderSummaries() {
       <input id="summarySearch" class="field search" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
       <button class="btn primary" id="addSummaryBtn">+ เพิ่มสรุปบทเรียน</button>
     </div>
-    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์')}
+    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์', { label: 'เพิ่มสรุปบทเรียน', onclick: 'editSummary()' })}
   `;
   $('#summarySearch').addEventListener('input', e => { state.search = e.target.value; renderSummaries(); });
   $('#addSummaryBtn').addEventListener('click', editSummary);
@@ -1014,8 +1017,12 @@ function field(label, id, value = '', type = 'text') {
   return `<div><label class="label" for="${id}">${label}</label><input id="${id}" class="field" type="${type}" value="${esc(value)}"></div>`;
 }
 
-function empty(title, body) {
-  return `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}</div>`;
+function empty(title, body, action = null) {
+  return `<div class="empty">
+    <strong>${esc(title)}</strong>
+    ${body ? `<span>${esc(body)}</span>` : ''}
+    ${action ? `<button class="btn ghost mini" onclick="${action.onclick}">${esc(action.label)}</button>` : ''}
+  </div>`;
 }
 
 function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebarOverlay').classList.add('open'); }
