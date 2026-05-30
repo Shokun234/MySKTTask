@@ -13,3 +13,11 @@ Encapsulated app logic in an IIFE to prevent console-based state manipulation. T
 ## 2025-05-14 - Visual Noise Reduction via Conditional Badges
 **Learning:** Constant "0" badges in navigation items create visual clutter and can be perceived as an "error" or a "missing piece" by users. Hiding the badge entirely when there are no items (count is 0) improves focus and makes the interface feel cleaner.
 **Action:** When implementing badges for task lists or notifications, ensure they are conditionally rendered or hidden when the count is zero.
+
+## 2025-05-16 - Actionable Empty States for Better Onboarding
+**Learning:** Empty states without a clear path forward leave users stranded. Adding a prominent CTA button (e.g., "Sync Sheets" or "Add Item") within the empty state container transforms a dead end into a helpful guidance point.
+**Action:** Always provide at least one relevant action button in empty state components.
+
+## 2025-05-16 - Focus Preservation in Live Search
+**Learning:** In vanilla JS apps that re-render large DOM chunks on every keystroke, the active search input often loses focus, breaking the user's flow. Manually restoring focus to the input immediately after the innerHTML update is a simple but critical fix for usability.
+**Action:** Ensure search inputs are re-focused after live-filtering triggers a DOM update.
