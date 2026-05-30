@@ -114,7 +114,7 @@ function loadLocal() {
   state.events = saved.events || [];
   state.activity = saved.activity || [];
   settings = { ...settings, ...parseJson(localStorage.getItem(SETTINGS_KEY), {}) };
-  document.body.classList.toggle('light', settings.theme === 'light');
+  updateThemeUI();
 }
 
 function logAction(action, type, item = {}) {
@@ -195,6 +195,10 @@ function navigate(page) {
   render();
 }
 window.navigate = navigate;
+window.pullSheet = pullSheet;
+window.editSummary = editSummary;
+window.editEvent = editEvent;
+window.resetHomeworkFilters = () => { state.search = ''; state.filter = 'all'; renderHomework(); };
 
 function render() {
   renderAdminAccess();
@@ -236,7 +240,7 @@ function renderDashboard() {
     <div class="grid two-col">
       <div class="card">
         <div class="card-head"><div class="card-title">การบ้านที่ต้องส่งเร็ว ๆ นี้</div></div>
-        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ')}</div></div>
+        <div class="card-body"><div class="list">${soon.length ? soon.map(hwCard).join('') : empty('ยังไม่มีการบ้าน', 'เชื่อม Google Sheet หรือให้ Admin เพิ่มรายการ', { label: '🔄 ซิงค์ Sheets', onclick: 'pullSheet()' })}</div></div>
       </div>
       <div class="card">
         <div class="card-head"><div class="card-title">กิจกรรมเดือนนี้</div></div>
@@ -267,6 +271,7 @@ function progressHtml() {
 
 function renderHomework() {
   const list = getHomeworkList();
+  const isFiltered = state.search.trim() || state.filter !== 'all';
   $('#page-homework').innerHTML = `
     <div class="toolbar">
       <input id="hwSearch" class="field search" placeholder="ค้นหาการบ้าน วิชา รายละเอียด หรือโน้ต..." value="${esc(state.search)}">
@@ -283,8 +288,8 @@ function renderHomework() {
       <button class="btn danger admin-action" id="bulkDelete">ลบที่เลือก</button>
     </div>
     <div class="hint" style="margin-bottom:12px">เลือก checkbox หลายรายการเพื่อทำ bulk actions ได้</div>
-    <div class="list">${list.length ? list.map(hwCard).join('') : empty('ไม่พบการบ้าน', 'ลองเปลี่ยนคำค้นหรือเชื่อมต่อ Google Sheet')}</div>`;
-  $('#hwSearch').addEventListener('input', e => { state.search = e.target.value; renderHomework(); });
+    <div class="list">${list.length ? list.map(hwCard).join('') : (isFiltered ? empty('ไม่พบการบ้านที่ค้นหา', 'ลองเปลี่ยนคำค้นหาหรือล้างการกรอง', { label: '🧹 ล้างการค้นหา', onclick: 'resetHomeworkFilters()' }) : empty('ยังไม่มีการบ้าน', 'เชื่อมต่อ Google Sheet หรือเพิ่มรายการใหม่', { label: '🔄 ซิงค์ Sheets', onclick: 'pullSheet()' }))}</div>`;
+  $('#hwSearch').addEventListener('input', e => { state.search = e.target.value; renderHomework(); $('#hwSearch').focus(); });
   $('#filterSubject').addEventListener('change', e => { state.filter = e.target.value; renderHomework(); });
   $('#sortHw').addEventListener('change', e => { state.sort = e.target.value; renderHomework(); });
   $('#bulkDone')?.addEventListener('click', bulkDone);
@@ -532,9 +537,9 @@ function renderSummaries() {
       <input id="summarySearch" class="field search" placeholder="ค้นหาสรุปบทเรียน..." value="${esc(state.search)}">
       <button class="btn primary" id="addSummaryBtn">+ เพิ่มสรุปบทเรียน</button>
     </div>
-    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์')}
+    ${list.length ? list.map(summaryCard).join('') : empty('ยังไม่มีสรุปบทเรียน', 'กดเพิ่มสรุปบทเรียนเพื่อโพสต์', { label: '+ เพิ่มสรุปบทเรียน', onclick: 'editSummary()' })}
   `;
-  $('#summarySearch').addEventListener('input', e => { state.search = e.target.value; renderSummaries(); });
+  $('#summarySearch').addEventListener('input', e => { state.search = e.target.value; renderSummaries(); $('#summarySearch').focus(); });
   $('#addSummaryBtn').addEventListener('click', editSummary);
 }
 
@@ -1014,12 +1019,29 @@ function field(label, id, value = '', type = 'text') {
   return `<div><label class="label" for="${id}">${label}</label><input id="${id}" class="field" type="${type}" value="${esc(value)}"></div>`;
 }
 
-function empty(title, body) {
-  return `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}</div>`;
+function empty(title, body, action = null) {
+  let html = `<div class="empty"><strong>${esc(title)}</strong>${body ? `<span>${esc(body)}</span>` : ''}`;
+  if (action) {
+    html += `<button class="btn ghost mini" onclick="${action.onclick}">${esc(action.label)}</button>`;
+  }
+  html += `</div>`;
+  return html;
 }
 
 function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebarOverlay').classList.add('open'); }
 function closeSidebar() { $('#sidebar').classList.remove('open'); $('#sidebarOverlay').classList.remove('open'); }
+
+function updateThemeUI() {
+  const isLight = settings.theme === 'light';
+  document.body.classList.toggle('light', isLight);
+  const toggle = $('#themeToggle');
+  if (toggle) {
+    toggle.setAttribute('aria-checked', isLight);
+    toggle.setAttribute('aria-label', isLight ? 'สลับเป็นโหมดมืด' : 'สลับเป็นโหมดสว่าง');
+  }
+  const meta = $('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isLight ? '#f3f6fb' : '#0d0f14');
+}
 
 function bindChrome() {
   const brand = $('.brand');
@@ -1030,7 +1052,7 @@ function bindChrome() {
   $('#sidebarOverlay').addEventListener('click', closeSidebar);
   $('#themeToggle').addEventListener('click', () => {
     settings.theme = settings.theme === 'light' ? 'dark' : 'light';
-    document.body.classList.toggle('light', settings.theme === 'light');
+    updateThemeUI();
     saveLocal();
   });
   $('#adminBtn').addEventListener('click', openAdminPin);
